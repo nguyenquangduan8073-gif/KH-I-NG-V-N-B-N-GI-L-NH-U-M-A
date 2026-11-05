@@ -132,12 +132,12 @@ export const ScoreboardBar: React.FC<ScoreboardBarProps> = ({
           <span className="hidden sm:inline">Soạn thẻ GV</span>
         </button>
 
-        {/* Audio Mute Toggle */}
+        {/* Audio Mute Toggle (Nhạc nền 30% & Âm thanh) */}
         <button
           onClick={onToggleMute}
           className="p-1.5 text-xs rounded-xl bg-white/80 hover:bg-white text-stone-800 border border-[#d6be8c] shadow-sm transition-colors cursor-pointer"
-          title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
-          aria-label={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+          title={isMuted ? 'Bật nhạc nền (30%) & âm thanh' : 'Tắt nhạc nền & âm thanh'}
+          aria-label={isMuted ? 'Bật nhạc nền & âm thanh' : 'Tắt nhạc nền & âm thanh'}
         >
           {isMuted ? (
             <VolumeX className="w-4 h-4 text-rose-600" />

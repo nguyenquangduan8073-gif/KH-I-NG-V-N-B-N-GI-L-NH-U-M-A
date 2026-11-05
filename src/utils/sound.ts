@@ -1,6 +1,8 @@
 class SoundManager {
   private ctx: AudioContext | null = null;
   public isMuted: boolean = false;
+  private bgmAudio: HTMLAudioElement | null = null;
+  public bgmVolume: number = 0.3; // 30% volume as requested by user
 
   private initContext() {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -12,11 +14,52 @@ class SoundManager {
     }
   }
 
+  public initBgm() {
+    if (!this.bgmAudio && typeof window !== 'undefined') {
+      // Use the uploaded Jeon Soo Yeon - Smile Smile Smile piano music
+      this.bgmAudio = new Audio('/assets/bgm_piano.m4a');
+      this.bgmAudio.loop = true;
+      this.bgmAudio.volume = this.bgmVolume;
+    }
+  }
+
+  public startBgm() {
+    this.initBgm();
+    if (this.bgmAudio) {
+      this.bgmAudio.loop = true;
+      this.bgmAudio.volume = this.isMuted ? 0 : this.bgmVolume;
+      if (!this.isMuted && this.bgmAudio.paused) {
+        this.bgmAudio.play().catch(() => {
+          // Autoplay policy prevented; will play on first user gesture
+        });
+      }
+    }
+  }
+
   public setMuted(muted: boolean) {
     this.isMuted = muted;
+    this.initBgm();
+    if (this.bgmAudio) {
+      if (muted) {
+        this.bgmAudio.pause();
+      } else {
+        this.bgmAudio.volume = this.bgmVolume;
+        this.bgmAudio.play().catch(() => {});
+      }
+    }
+  }
+
+  public setBgmVolume(vol: number) {
+    this.bgmVolume = Math.max(0, Math.min(1, vol));
+    if (this.bgmAudio && !this.isMuted) {
+      this.bgmAudio.volume = this.bgmVolume;
+    }
   }
 
   public playFlip() {
+    // Also ensure BGM is running on card interactions
+    this.startBgm();
+
     if (this.isMuted) return;
     try {
       this.initContext();

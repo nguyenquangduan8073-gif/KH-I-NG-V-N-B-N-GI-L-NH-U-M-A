@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PairData, CardItem, GameMode, TeamScore, AiNarrativeState } from './types/game';
 import { DEFAULT_PAIRS } from './data/defaultCards';
 import { soundManager } from './utils/sound';
@@ -7,7 +7,7 @@ import { MemoryParchmentPanel } from './components/MemoryParchmentPanel';
 import { ScoreboardBar } from './components/ScoreboardBar';
 import { TeacherDrawer } from './components/TeacherDrawer';
 import { ConclusionModal } from './components/ConclusionModal';
-import { Play, Maximize2, Settings, BookMarked, Sparkles } from 'lucide-react';
+import { Play, Maximize2, Settings, BookMarked, Sparkles, Timer, Eye } from 'lucide-react';
 
 const INITIAL_TEAMS: TeamScore[] = [
   { id: 1, name: 'Tổ 1', score: 0, color: '#0284C7' }, // sky blue
@@ -35,6 +35,12 @@ export default function App() {
   const [matchedPairIds, setMatchedPairIds] = useState<number[]>([]);
   const [latestMatchedId, setLatestMatchedId] = useState<number | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
+
+  // 8s Rapid Card Preview & Countdown State
+  const [isPreviewing, setIsPreviewing] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(8);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Classroom Mode & State
   const [isStarted, setIsStarted] = useState<boolean>(false);
@@ -109,6 +115,26 @@ export default function App() {
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Background music start on user interaction
+  useEffect(() => {
+    const handleFirstGesture = () => {
+      soundManager.startBgm();
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
+
+    window.addEventListener('click', handleFirstGesture, { once: true });
+    window.addEventListener('keydown', handleFirstGesture, { once: true });
+    window.addEventListener('touchstart', handleFirstGesture, { once: true });
+
+    return () => {
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
   }, []);
 
   // Fetch AI commentary from backend
@@ -253,18 +279,90 @@ export default function App() {
     });
   };
 
+  // Stop preview helper
+  const stopPreview = useCallback((endEarly: boolean = false) => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    if (previewIntervalRef.current) {
+      clearInterval(previewIntervalRef.current);
+      previewIntervalRef.current = null;
+    }
+
+    setIsPreviewing(false);
+    setIsLocked(false);
+    setCountdown(8);
+    soundManager.playFlip();
+
+    setAiStory({
+      speaker: 'Thủ thư Mùa Đông',
+      message: endEarly
+        ? 'Các em đã sẵn sàng! Các mảnh kí ức đã úp lại. Xin mời bắt đầu lật tìm các cặp thẻ tương ứng!'
+        : 'Thời gian ghi nhớ 8 giây đã hết! Các mảnh kí ức đã úp lại. Xin mời các em bắt đầu lật tìm các cặp thẻ tương ứng!',
+      isLoading: false,
+      type: 'intro',
+    });
+  }, []);
+
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+    };
+  }, []);
+
   // Restart / Reset
   const handleRestart = () => {
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
     initializeDeck(pairs);
     setTeams(INITIAL_TEAMS);
     setCurrentTeamIndex(0);
     setIsConclusionOpen(false);
+    setIsPreviewing(false);
+    setCountdown(8);
     setAiStory({
       speaker: 'Thủ thư Mùa Đông',
-      message: 'Các mảnh kí ức đã được xáo trộn lại! Xin mời cả lớp cùng bắt đầu chuyến khám phá mới.',
+      message: 'Các mảnh kí ức đã được xáo trộn lại! Nhấn nút "Bắt đầu" ở trên dãy thẻ bài để xem trong 8 giây trước khi tìm cặp nhé.',
       isLoading: false,
       type: 'intro',
     });
+  };
+
+  // Start round with 8s rapid card peek
+  const handleStartRoundWithPreview = () => {
+    if (isPreviewing || isLocked) return;
+
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+
+    soundManager.playFlip();
+    soundManager.startBgm();
+
+    setIsPreviewing(true);
+    setIsLocked(true);
+    setCountdown(8);
+
+    setAiStory({
+      speaker: 'Thủ thư Mùa Đông',
+      message: 'Các em có 8 giây quý giá để ghi nhớ vị trí các sự việc và chi tiết. Hãy tập trung quan sát thật nhanh nhé!',
+      isLoading: false,
+      type: 'intro',
+    });
+
+    let secondsLeft = 8;
+    previewIntervalRef.current = setInterval(() => {
+      secondsLeft -= 1;
+      if (secondsLeft >= 0) {
+        setCountdown(secondsLeft);
+      }
+    }, 1000);
+
+    previewTimerRef.current = setTimeout(() => {
+      stopPreview(false);
+    }, 8000);
   };
 
   // Fullscreen
@@ -343,6 +441,7 @@ export default function App() {
               <button
                 onClick={() => {
                   soundManager.playFlip();
+                  soundManager.startBgm();
                   setIsStarted(true);
                 }}
                 className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#8c5a2b] to-[#a86e35] hover:from-[#73471f] hover:to-[#8c5a2b] text-white font-extrabold text-base shadow-xl shadow-amber-950/20 transition-all transform hover:scale-105 cursor-pointer font-serif-literary"
@@ -409,6 +508,56 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 items-stretch my-1">
             {/* LEFT ZONE (8 cols on desktop): 10 Cards on Cobblestone Plaza */}
             <div className="lg:col-span-8 flex flex-col justify-center">
+              {/* Nút Ấn Bắt Đầu & Bộ Đếm Thời Gian 8s (Nằm ngay trên dãy thẻ bài đầu tiên) */}
+              <div className="flex items-center justify-between gap-3 mb-2.5 px-1 bg-[#fdfbf6]/70 border border-[#dfcaa0]/80 rounded-xl py-1.5 px-3 backdrop-blur-sm shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={isPreviewing ? () => stopPreview(true) : handleStartRoundWithPreview}
+                    disabled={!isPreviewing && isLocked}
+                    className={`flex items-center gap-2 px-4 py-1.5 md:px-5 md:py-2 rounded-xl font-bold font-serif-literary text-xs md:text-sm shadow-sm transition-all cursor-pointer ${
+                      isPreviewing
+                        ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-2 border-amber-500 shadow-amber-500/20'
+                        : 'bg-gradient-to-r from-[#8c5a2b] via-[#9e6935] to-[#8c5a2b] hover:from-[#78481c] hover:to-[#8c5a2b] text-white border border-[#d6be8c] hover:shadow-md hover:scale-[1.02]'
+                    } disabled:opacity-70 disabled:cursor-not-allowed`}
+                    title={
+                      isPreviewing
+                        ? 'Nhấn vào đây để úp thẻ bài lại và bắt đầu chơi ngay'
+                        : 'Lật xem tất cả thẻ bài trong 8 giây để quan sát và ghi nhớ vị trí'
+                    }
+                  >
+                    {isPreviewing ? (
+                      <>
+                        <Timer className="w-4 h-4 text-amber-800 animate-spin" />
+                        <span>ĐANG GHI NHỚ: 0{countdown}s · ÚP THẺ NGAY</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5 fill-current text-amber-200" />
+                        <span>BẮT ĐẦU (LẬT XEM 8S)</span>
+                      </>
+                    )}
+                  </button>
+
+                  <span className="text-[11px] md:text-xs text-stone-700 font-serif-literary italic hidden sm:inline">
+                    {isPreviewing
+                      ? 'Nhanh tay ghi nhớ vị trí các sự việc & chi tiết (có thể bấm "Úp thẻ ngay")...'
+                      : 'Lật xem trước tất cả thẻ trong 8 giây trước khi vào trận'}
+                  </span>
+                </div>
+
+                {/* Status Badge when previewing */}
+                {isPreviewing ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-600/40 text-amber-950 font-bold text-xs font-mono">
+                    <Eye className="w-3.5 h-3.5 text-amber-800" />
+                    <span>0{countdown}s</span>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-stone-500 font-mono hidden md:inline">
+                    5 CẶP · 10 THẺ
+                  </span>
+                )}
+              </div>
+
               {/* 10 Card Grid (5 columns x 2 rows) - Expanded sizing */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 md:gap-4 lg:gap-4.5">
                 {cards.map((card) => {
@@ -419,11 +568,11 @@ export default function App() {
                     <CardTile
                       key={card.id}
                       card={card}
-                      isFlipped={isSelected}
+                      isFlipped={isSelected || isPreviewing}
                       isMatched={isMatched}
                       isSelected={isSelected}
                       onSelect={handleCardSelect}
-                      disabled={isLocked}
+                      disabled={isLocked || isPreviewing}
                     />
                   );
                 })}
