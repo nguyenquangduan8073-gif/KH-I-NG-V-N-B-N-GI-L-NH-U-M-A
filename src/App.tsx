@@ -36,10 +36,11 @@ export default function App() {
   const [latestMatchedId, setLatestMatchedId] = useState<number | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
 
-  // 8s Rapid Card Preview & Countdown State
+  // Sequential Card Preview (Left to Right) & Countdown State
   const [isPreviewing, setIsPreviewing] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(8);
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [openedColumns, setOpenedColumns] = useState<number>(0);
+  const [countdown, setCountdown] = useState<number>(5);
+  const previewTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const previewIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Classroom Mode & State
@@ -281,25 +282,24 @@ export default function App() {
 
   // Stop preview helper
   const stopPreview = useCallback((endEarly: boolean = false) => {
-    if (previewTimerRef.current) {
-      clearTimeout(previewTimerRef.current);
-      previewTimerRef.current = null;
-    }
+    previewTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    previewTimeoutsRef.current = [];
     if (previewIntervalRef.current) {
       clearInterval(previewIntervalRef.current);
       previewIntervalRef.current = null;
     }
 
     setIsPreviewing(false);
+    setOpenedColumns(0);
     setIsLocked(false);
-    setCountdown(8);
+    setCountdown(5);
     soundManager.playFlip();
 
     setAiStory({
       speaker: 'Thủ thư Mùa Đông',
       message: endEarly
         ? 'Các em đã sẵn sàng! Các mảnh kí ức đã úp lại. Xin mời bắt đầu lật tìm các cặp thẻ tương ứng!'
-        : 'Thời gian ghi nhớ 8 giây đã hết! Các mảnh kí ức đã úp lại. Xin mời các em bắt đầu lật tìm các cặp thẻ tương ứng!',
+        : 'Thời gian quan sát 5 giây đã hết! Toàn bộ thẻ bài đã lật về vị trí ban đầu. Xin mời các em bắt đầu lật tìm cặp!',
       isLoading: false,
       type: 'intro',
     });
@@ -308,61 +308,121 @@ export default function App() {
   // Clear timers on unmount
   useEffect(() => {
     return () => {
-      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      previewTimeoutsRef.current.forEach((t) => clearTimeout(t));
       if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
     };
   }, []);
 
   // Restart / Reset
   const handleRestart = () => {
-    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-    if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+    previewTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    previewTimeoutsRef.current = [];
+    if (previewIntervalRef.current) {
+      clearInterval(previewIntervalRef.current);
+      previewIntervalRef.current = null;
+    }
     initializeDeck(pairs);
     setTeams(INITIAL_TEAMS);
     setCurrentTeamIndex(0);
     setIsConclusionOpen(false);
     setIsPreviewing(false);
-    setCountdown(8);
+    setOpenedColumns(0);
+    setCountdown(5);
     setAiStory({
       speaker: 'Thủ thư Mùa Đông',
-      message: 'Các mảnh kí ức đã được xáo trộn lại! Nhấn nút "Bắt đầu" ở trên dãy thẻ bài để xem trong 8 giây trước khi tìm cặp nhé.',
+      message: 'Các mảnh kí ức đã được xáo trộn lại! Nhấn nút "Bắt đầu" để mở lần lượt các cặp thẻ từ trái sang phải nhé.',
       isLoading: false,
       type: 'intro',
     });
   };
 
-  // Start round with 8s rapid card peek
+  // Start round: open pairs sequentially from left to right (0.5s per pair), hold 5s, then flip back
   const handleStartRoundWithPreview = () => {
     if (isPreviewing || isLocked) return;
 
-    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-    if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+    previewTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    previewTimeoutsRef.current = [];
+    if (previewIntervalRef.current) {
+      clearInterval(previewIntervalRef.current);
+      previewIntervalRef.current = null;
+    }
 
-    soundManager.playFlip();
     soundManager.startBgm();
 
     setIsPreviewing(true);
     setIsLocked(true);
-    setCountdown(8);
+    setOpenedColumns(1);
+    setCountdown(5);
+    soundManager.playFlip();
 
     setAiStory({
       speaker: 'Thủ thư Mùa Đông',
-      message: 'Các em có 8 giây quý giá để ghi nhớ vị trí các sự việc và chi tiết. Hãy tập trung quan sát thật nhanh nhé!',
+      message: 'Đang mở lần lượt các cặp thẻ từ trái sang phải (Cặp 1/5)... Hãy chú ý quan sát nhé!',
       isLoading: false,
       type: 'intro',
     });
 
-    let secondsLeft = 8;
-    previewIntervalRef.current = setInterval(() => {
-      secondsLeft -= 1;
-      if (secondsLeft >= 0) {
-        setCountdown(secondsLeft);
-      }
+    // Cặp 2 (sau 0.5s)
+    const t1 = setTimeout(() => {
+      setOpenedColumns(2);
+      soundManager.playFlip();
+      setAiStory((prev) => ({
+        ...prev,
+        message: 'Đang mở cặp 2/5 từ trái sang phải...',
+      }));
+    }, 500);
+
+    // Cặp 3 (sau 1.0s)
+    const t2 = setTimeout(() => {
+      setOpenedColumns(3);
+      soundManager.playFlip();
+      setAiStory((prev) => ({
+        ...prev,
+        message: 'Đang mở cặp 3/5 từ trái sang phải...',
+      }));
     }, 1000);
 
-    previewTimerRef.current = setTimeout(() => {
-      stopPreview(false);
-    }, 8000);
+    // Cặp 4 (sau 1.5s)
+    const t3 = setTimeout(() => {
+      setOpenedColumns(4);
+      soundManager.playFlip();
+      setAiStory((prev) => ({
+        ...prev,
+        message: 'Đang mở cặp 4/5 từ trái sang phải...',
+      }));
+    }, 1500);
+
+    // Cặp 5 (sau 2.0s) - Cả 5 cặp thẻ đã được mở hoàn tất!
+    const t4 = setTimeout(() => {
+      setOpenedColumns(5);
+      soundManager.playFlip();
+
+      setAiStory({
+        speaker: 'Thủ thư Mùa Đông',
+        message: 'Đã mở cả 5 cặp thẻ! Các em có 5 giây ghi nhớ trước khi thẻ tự động lật về vị trí ban đầu.',
+        isLoading: false,
+        type: 'intro',
+      });
+
+      let secondsLeft = 5;
+      setCountdown(5);
+
+      previewIntervalRef.current = setInterval(() => {
+        secondsLeft -= 1;
+        if (secondsLeft >= 0) {
+          setCountdown(secondsLeft);
+        }
+      }, 1000);
+
+      // Giữ hiển thị đúng 5s sau khi mở hết cả 5 cặp
+      const tEnd = setTimeout(() => {
+        stopPreview(false);
+      }, 5000);
+
+      previewTimeoutsRef.current.push(tEnd);
+    }, 2000);
+
+    previewTimeoutsRef.current.push(t1, t2, t3, t4);
   };
 
   // Fullscreen
@@ -508,7 +568,7 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 items-stretch my-1">
             {/* LEFT ZONE (8 cols on desktop): 10 Cards on Cobblestone Plaza */}
             <div className="lg:col-span-8 flex flex-col justify-center">
-              {/* Nút Ấn Bắt Đầu & Bộ Đếm Thời Gian 8s (Nằm ngay trên dãy thẻ bài đầu tiên) */}
+              {/* Nút Ấn Bắt Đầu & Bộ Đếm Thời Gian (Mở lần lượt từ trái sang phải 0.5s/cặp & giữ 5s) */}
               <div className="flex items-center justify-between gap-3 mb-2.5 px-1 bg-[#fdfbf6]/70 border border-[#dfcaa0]/80 rounded-xl py-1.5 px-3 backdrop-blur-sm shadow-xs">
                 <div className="flex items-center gap-2.5">
                   <button
@@ -522,26 +582,32 @@ export default function App() {
                     title={
                       isPreviewing
                         ? 'Nhấn vào đây để úp thẻ bài lại và bắt đầu chơi ngay'
-                        : 'Lật xem tất cả thẻ bài trong 8 giây để quan sát và ghi nhớ vị trí'
+                        : 'Mở lần lượt các cặp thẻ từ trái sang phải (mỗi 0.5s một cặp) và giữ xem 5s'
                     }
                   >
                     {isPreviewing ? (
                       <>
                         <Timer className="w-4 h-4 text-amber-800 animate-spin" />
-                        <span>ĐANG GHI NHỚ: 0{countdown}s · ÚP THẺ NGAY</span>
+                        {openedColumns < 5 ? (
+                          <span>ĐANG MỞ CẶP {openedColumns}/5 · ÚP THẺ NGAY</span>
+                        ) : (
+                          <span>GIỮ XEM: 0{countdown}s · ÚP THẺ NGAY</span>
+                        )}
                       </>
                     ) : (
                       <>
                         <Play className="w-3.5 h-3.5 fill-current text-amber-200" />
-                        <span>BẮT ĐẦU (LẬT XEM 8S)</span>
+                        <span>BẮT ĐẦU (MỞ LẦN LƯỢT 5S)</span>
                       </>
                     )}
                   </button>
 
                   <span className="text-[11px] md:text-xs text-stone-700 font-serif-literary italic hidden sm:inline">
                     {isPreviewing
-                      ? 'Nhanh tay ghi nhớ vị trí các sự việc & chi tiết (có thể bấm "Úp thẻ ngay")...'
-                      : 'Lật xem trước tất cả thẻ trong 8 giây trước khi vào trận'}
+                      ? openedColumns < 5
+                        ? `Đang mở lần lượt từ trái sang phải (cặp ${openedColumns}/5, 0.5s/cặp)...`
+                        : 'Cả 5 cặp thẻ đang mở! Đang đếm ngược 5 giây trước khi tự động úp lại...'
+                      : 'Mở lần lượt từ trái sang phải (0.5s/cặp), giữ xem 5s rồi tự úp lại'}
                   </span>
                 </div>
 
@@ -549,7 +615,11 @@ export default function App() {
                 {isPreviewing ? (
                   <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-600/40 text-amber-950 font-bold text-xs font-mono">
                     <Eye className="w-3.5 h-3.5 text-amber-800" />
-                    <span>0{countdown}s</span>
+                    {openedColumns < 5 ? (
+                      <span>Cặp {openedColumns}/5</span>
+                    ) : (
+                      <span>0{countdown}s / 5s</span>
+                    )}
                   </div>
                 ) : (
                   <span className="text-[11px] text-stone-500 font-mono hidden md:inline">
@@ -560,15 +630,17 @@ export default function App() {
 
               {/* 10 Card Grid (5 columns x 2 rows) - Expanded sizing */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 md:gap-4 lg:gap-4.5">
-                {cards.map((card) => {
+                {cards.map((card, index) => {
                   const isSelected = selectedCards.some((c) => c.id === card.id);
                   const isMatched = matchedPairIds.includes(card.pairId);
+                  const colIndex = index % 5;
+                  const isPreviewFlipped = isPreviewing && colIndex < openedColumns;
 
                   return (
                     <CardTile
                       key={card.id}
                       card={card}
-                      isFlipped={isSelected || isPreviewing}
+                      isFlipped={isSelected || isPreviewFlipped}
                       isMatched={isMatched}
                       isSelected={isSelected}
                       onSelect={handleCardSelect}
