@@ -1,0 +1,6 @@
+{
+  "name": "Mảnh ghép kí ức – Phố chợ mùa đông",
+  "description": "Webgame tương tác giáo dục môn Ngữ văn 6: Ôn tập văn bản Gió lạnh đầu mùa qua trò chơi lật thẻ 3D, mở khóa tranh phố chợ và người dẫn chuyện AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
