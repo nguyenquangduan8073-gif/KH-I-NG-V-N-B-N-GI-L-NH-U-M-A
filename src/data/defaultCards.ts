@@ -11,7 +11,7 @@ export const DEFAULT_PAIRS: PairData[] = [
   },
   {
     id: 2,
-    name: 'Bé Hiên co ro',
+    name: 'Bé Hiên co ro trong gió lạnh',
     titleCard: 'Nhân vật: Bé Hiên',
     detailCard: 'Em đứng co ro bên cột quán, chỉ mặc manh áo rách tả tơi, hở cả lưng và tay, môi tím tái vì gió rét.',
     sceneSummary: 'Chiếc cột quán nghèo nơi góc chợ, dáng hình nhỏ bé tội nghiệp gợi lòng thương cảm.',
@@ -19,7 +19,7 @@ export const DEFAULT_PAIRS: PairData[] = [
   },
   {
     id: 3,
-    name: 'Sơn và Lan mang áo',
+    name: 'Sơn và Lan mang áo cho Hiên',
     titleCard: 'Hành động: Sơn và Lan tặng áo',
     detailCard: 'Nhớ thương bé Hiên, hai chị em bàn nhau về nhà lén lấy chiếc áo bông cũ của em Duyên đem cho Hiên mặc.',
     sceneSummary: 'Chiếc áo bông cũ chần chỉ đỏ thắp lên hơi ấm tình người giữa giá rét đầu mùa.',
@@ -27,7 +27,7 @@ export const DEFAULT_PAIRS: PairData[] = [
   },
   {
     id: 4,
-    name: 'Lo sợ đi đòi lại áo',
+    name: 'Lo sợ, đi đòi lại áo',
     titleCard: 'Tâm lý: Nỗi lo sợ của hai chị em',
     detailCard: 'Sợ mẹ biết sẽ bị mắng, Sơn và Lan lấm lét lẩn tránh, hoảng hốt chạy đi tìm Hiên để đòi lại áo nhưng không thấy.',
     sceneSummary: 'Ngõ nhỏ quanh co, hai đứa trẻ lấm lét, sợ hãi trước trách nhiệm của việc mình vừa làm.',

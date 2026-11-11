@@ -16,14 +16,28 @@ const INITIAL_TEAMS: TeamScore[] = [
   { id: 4, name: 'Tổ 4', score: 0, color: '#E11D48' }, // rose
 ];
 
-const LOCAL_STORAGE_KEY = 'gio_lanh_dau_mua_pairs_v1';
+const LOCAL_STORAGE_KEY = 'gio_lanh_dau_mua_pairs_v2';
 
 export default function App() {
   // Pairs setup
   const [pairs, setPairs] = useState<PairData[]>(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem('gio_lanh_dau_mua_pairs_v1');
+      if (saved) {
+        const parsed: PairData[] = JSON.parse(saved);
+        return parsed.map((p) => {
+          if (p.id === 2 && p.name === 'Bé Hiên co ro') {
+            return { ...p, name: 'Bé Hiên co ro trong gió lạnh' };
+          }
+          if (p.id === 3 && p.name === 'Sơn và Lan mang áo') {
+            return { ...p, name: 'Sơn và Lan mang áo cho Hiên' };
+          }
+          if (p.id === 4 && (p.name === 'Lo sợ đi đòi lại áo' || p.name === 'Lo sợ, đi đòi lạo áo')) {
+            return { ...p, name: 'Lo sợ, đi đòi lại áo' };
+          }
+          return p;
+        });
+      }
     } catch {
       // fallback
     }
@@ -35,6 +49,7 @@ export default function App() {
   const [matchedPairIds, setMatchedPairIds] = useState<number[]>([]);
   const [latestMatchedId, setLatestMatchedId] = useState<number | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [roundCount, setRoundCount] = useState<number>(1);
 
   // Sequential Card Preview (Left to Right) & Countdown State
   const [isPreviewing, setIsPreviewing] = useState<boolean>(false);
@@ -321,6 +336,7 @@ export default function App() {
       clearInterval(previewIntervalRef.current);
       previewIntervalRef.current = null;
     }
+    setRoundCount((prev) => prev + 1);
     initializeDeck(pairs);
     setTeams(INITIAL_TEAMS);
     setCurrentTeamIndex(0);
@@ -330,7 +346,7 @@ export default function App() {
     setCountdown(5);
     setAiStory({
       speaker: 'Thủ thư Mùa Đông',
-      message: 'Các mảnh kí ức đã được xáo trộn lại! Nhấn nút "Bắt đầu" để mở lần lượt các cặp thẻ từ trái sang phải nhé.',
+      message: 'Các mảnh kí ức đã được xáo trộn ngẫu nhiên vào 10 ô cờ từ #01 đến #10! Nhấn nút "Bắt đầu" để mở xem trước 5 giây nhé.',
       isLoading: false,
       type: 'intro',
     });
@@ -345,6 +361,15 @@ export default function App() {
     if (previewIntervalRef.current) {
       clearInterval(previewIntervalRef.current);
       previewIntervalRef.current = null;
+    }
+
+    // If previous game was completed (all 5 pairs matched), initialize fresh shuffled cards for new round
+    if (matchedPairIds.length === 5) {
+      setRoundCount((prev) => prev + 1);
+      initializeDeck(pairs);
+      setTeams(INITIAL_TEAMS);
+      setCurrentTeamIndex(0);
+      setIsConclusionOpen(false);
     }
 
     soundManager.startBgm();
@@ -638,7 +663,7 @@ export default function App() {
 
                   return (
                     <CardTile
-                      key={card.id}
+                      key={`card-r${roundCount}-slot${card.id}`}
                       card={card}
                       isFlipped={isSelected || isPreviewFlipped}
                       isMatched={isMatched}
